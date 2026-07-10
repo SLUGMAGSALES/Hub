@@ -1,34 +1,25 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getOrCreateCurrentMember } from "@/lib/member";
+import { getCurrentUser } from "@/lib/member";
 import { completeFollowUp } from "../actions";
-import { STAGE_LABELS, type Stage } from "@/lib/constants";
+import { statusLabel } from "@/lib/constants";
+import { contactLabel, contactName, type ContactRef } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Row = {
   id: string;
-  due_date: string;
   status: string;
-  member_id: string | null;
-  slug_leads: {
-    company_name: string;
-    contact_name: string | null;
-    stage: string;
-  } | null;
-  slug_team_members: { full_name: string } | null;
+  next_action: string | null;
+  next_action_date: string;
+  assigned_to: string | null;
+  contacts: ContactRef;
 };
 
 function todayISO() {
-  // Server-local date as YYYY-MM-DD.
   const d = new Date();
   const tz = d.getTimezoneOffset() * 60000;
   return new Date(d.getTime() - tz).toISOString().slice(0, 10);
-}
-
-function StageBadge({ stage }: { stage: string }) {
-  const label = STAGE_LABELS[stage as Stage] ?? stage;
-  return <span className={`badge ${stage}`}>{label}</span>;
 }
 
 export default async function FollowUpsPage({
@@ -36,34 +27,35 @@ export default async function FollowUpsPage({
 }: {
   searchParams: { mine?: string };
 }) {
-  const member = await getOrCreateCurrentMember();
+  const user = await getCurrentUser();
   const mineOnly = searchParams.mine === "1";
   const supabase = createClient();
 
   let query = supabase
-    .from("slug_follow_ups")
+    .from("leads")
     .select(
-      "id, due_date, status, member_id, slug_leads(company_name, contact_name, stage), slug_team_members(full_name)",
+      "id, status, next_action, next_action_date, assigned_to, contacts(company, first_name, last_name)",
     )
-    .eq("status", "pending")
-    .order("due_date", { ascending: true });
+    .not("next_action_date", "is", null)
+    .not("status", "in", "(won,lost)")
+    .order("next_action_date", { ascending: true });
 
-  if (mineOnly && member) query = query.eq("member_id", member.id);
+  if (mineOnly && user) query = query.eq("assigned_to", user.email);
 
   const { data } = await query;
   const rows = (data ?? []) as unknown as Row[];
 
   const today = todayISO();
-  const overdue = rows.filter((r) => r.due_date < today);
-  const dueToday = rows.filter((r) => r.due_date === today);
-  const upcoming = rows.filter((r) => r.due_date > today);
+  const overdue = rows.filter((r) => r.next_action_date < today);
+  const dueToday = rows.filter((r) => r.next_action_date === today);
+  const upcoming = rows.filter((r) => r.next_action_date > today);
 
   return (
     <>
       <div className="page-header">
         <div>
           <h1>Follow-ups</h1>
-          <p>Built automatically from logged activity with a next follow-up date.</p>
+          <p>Leads with a next follow-up date — overdue and due today first.</p>
         </div>
         <Link href="/log" className="btn small">
           Log activity
@@ -85,41 +77,22 @@ export default async function FollowUpsPage({
         </Link>
       </div>
 
-      <Section
-        title="Overdue"
-        count={overdue.length}
-        rows={overdue}
-        badge="overdue"
-        emptyText="Nothing overdue. Nice."
-      />
+      <Section title="Overdue" rows={overdue} badge="overdue" emptyText="Nothing overdue. Nice." />
       <div style={{ height: 18 }} />
-      <Section
-        title="Due today"
-        count={dueToday.length}
-        rows={dueToday}
-        badge="today"
-        emptyText="Nothing due today."
-      />
+      <Section title="Due today" rows={dueToday} badge="today" emptyText="Nothing due today." />
       <div style={{ height: 18 }} />
-      <Section
-        title="Upcoming"
-        count={upcoming.length}
-        rows={upcoming}
-        emptyText="No upcoming follow-ups scheduled."
-      />
+      <Section title="Upcoming" rows={upcoming} emptyText="No upcoming follow-ups scheduled." />
     </>
   );
 }
 
 function Section({
   title,
-  count,
   rows,
   badge,
   emptyText,
 }: {
   title: string;
-  count: number;
   rows: Row[];
   badge?: "overdue" | "today";
   emptyText: string;
@@ -127,7 +100,7 @@ function Section({
   return (
     <div className="card">
       <h2 style={{ display: "flex", gap: 10, alignItems: "center" }}>
-        {title} <span className="badge">{count}</span>
+        {title} <span className="badge">{rows.length}</span>
       </h2>
       {rows.length === 0 ? (
         <div className="empty">{emptyText}</div>
@@ -138,8 +111,9 @@ function Section({
               <tr>
                 <th>Company</th>
                 <th>Contact</th>
-                <th>Stage</th>
-                <th>Rep</th>
+                <th>Next step</th>
+                <th>Status</th>
+                <th>Owner</th>
                 <th>Due</th>
                 <th></th>
               </tr>
@@ -147,28 +121,25 @@ function Section({
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id}>
-                  <td style={{ fontWeight: 600 }}>
-                    {r.slug_leads?.company_name ?? "—"}
-                  </td>
-                  <td>{r.slug_leads?.contact_name ?? "—"}</td>
+                  <td style={{ fontWeight: 600 }}>{contactLabel(r.contacts)}</td>
+                  <td>{contactName(r.contacts)}</td>
+                  <td>{r.next_action ?? "—"}</td>
                   <td>
-                    {r.slug_leads?.stage ? (
-                      <StageBadge stage={r.slug_leads.stage} />
-                    ) : (
-                      "—"
-                    )}
+                    <span className={`badge ${r.status}`}>
+                      {statusLabel(r.status)}
+                    </span>
                   </td>
-                  <td>{r.slug_team_members?.full_name ?? "—"}</td>
+                  <td className="muted">{r.assigned_to ?? "—"}</td>
                   <td>
                     {badge ? (
-                      <span className={`badge ${badge}`}>{r.due_date}</span>
+                      <span className={`badge ${badge}`}>{r.next_action_date}</span>
                     ) : (
-                      r.due_date
+                      r.next_action_date
                     )}
                   </td>
                   <td>
                     <form action={completeFollowUp}>
-                      <input type="hidden" name="follow_up_id" value={r.id} />
+                      <input type="hidden" name="lead_id" value={r.id} />
                       <button className="btn secondary small" type="submit">
                         Mark done
                       </button>

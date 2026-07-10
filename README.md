@@ -16,6 +16,16 @@ Three things it does:
 Everything is gated behind Supabase Auth — no prospect data is visible without
 signing in.
 
+> **Schema note (important).** The app targets the team's **existing** live
+> tables: `contacts`, `leads`, `activities`, `deals`, `daily_log` (Supabase
+> project `tlblflodoteuvdhorfaw`). It does **not** own or create them. Mapping:
+> a logged touch writes an `activities` row (and creates/updates the contact's
+> `leads` row); the follow-up list reads `leads.next_action_date`; the pipeline
+> groups `leads` by `status`. There is no `team_members` table yet, so
+> `logged_by` / `assigned_to` are stored as the signed-in user's **email**.
+> The `supabase/migrations/0001_init.sql` file (which defines `slug_*` tables)
+> is **legacy and unused** — do not run it against the live database.
+
 ---
 
 ## Table of contents

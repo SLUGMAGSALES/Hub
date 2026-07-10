@@ -1,8 +1,9 @@
-// Shared option lists. Kept in one place so the form selects, the pipeline
-// columns, and validation all agree. These MUST match the values your team
-// actually stores in slug_leads.stage / slug_activities.contact_method.
+// Shared option lists for the real schema. leads.status defaults to 'new';
+// activities.type and leads.assigned_to are free text today. These lists drive
+// the form selects and the pipeline columns — extend them to match whatever
+// values the team actually uses.
 
-export const STAGES = [
+export const STATUSES = [
   "new",
   "contacted",
   "qualified",
@@ -11,9 +12,9 @@ export const STAGES = [
   "lost",
 ] as const;
 
-export type Stage = (typeof STAGES)[number];
+export type Status = (typeof STATUSES)[number];
 
-export const STAGE_LABELS: Record<Stage, string> = {
+export const STATUS_LABELS: Record<string, string> = {
   new: "New",
   contacted: "Contacted",
   qualified: "Qualified",
@@ -22,17 +23,19 @@ export const STAGE_LABELS: Record<Stage, string> = {
   lost: "Lost",
 };
 
-// Stages that still count as "in the pipeline" (open deals).
-export const OPEN_STAGES: Stage[] = [
+// Statuses still counted as an open deal (in the pipeline).
+export const OPEN_STATUSES: string[] = [
   "new",
   "contacted",
   "qualified",
   "proposal",
 ];
 
-export const CONTACT_METHODS = [
+// Activity "type" — how the rep touched the prospect.
+export const ACTIVITY_TYPES = [
+  "call",
   "email",
-  "phone",
+  "meeting",
   "in_person",
   "social",
   "event",
@@ -40,14 +43,25 @@ export const CONTACT_METHODS = [
   "other",
 ] as const;
 
-export type ContactMethod = (typeof CONTACT_METHODS)[number];
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
-export const CONTACT_METHOD_LABELS: Record<ContactMethod, string> = {
+export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  call: "Call",
   email: "Email",
-  phone: "Phone",
+  meeting: "Meeting",
   in_person: "In person",
   social: "Social / DM",
   event: "Event",
   text: "Text",
   other: "Other",
 };
+
+export function statusLabel(s: string | null | undefined): string {
+  if (!s) return "—";
+  return STATUS_LABELS[s] ?? s;
+}
+
+export function activityTypeLabel(t: string | null | undefined): string {
+  if (!t) return "—";
+  return ACTIVITY_TYPE_LABELS[t] ?? t;
+}

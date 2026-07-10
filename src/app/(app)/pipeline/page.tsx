@@ -1,17 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
-import { STAGES, STAGE_LABELS, OPEN_STAGES, type Stage } from "@/lib/constants";
+import { STATUSES, STATUS_LABELS, OPEN_STATUSES } from "@/lib/constants";
+import { contactLabel, contactName, type ContactRef } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type LeadRow = {
   id: string;
-  company_name: string;
-  contact_name: string | null;
-  stage: string;
-  owner_id: string | null;
-  estimated_value: number | null;
+  title: string | null;
+  status: string;
+  deal_value: number | null;
+  assigned_to: string | null;
   updated_at: string;
-  slug_team_members: { full_name: string } | null;
+  contacts: ContactRef;
 };
 
 function money(n: number | null) {
@@ -25,39 +25,38 @@ export default async function PipelinePage({
   searchParams: { rep?: string };
 }) {
   const supabase = createClient();
-
-  const { data: members } = await supabase
-    .from("slug_team_members")
-    .select("id, full_name")
-    .order("full_name", { ascending: true });
-
   const repFilter = searchParams.rep ?? "";
 
+  // Distinct owners (free-text assigned_to) for the filter dropdown.
+  const { data: owners } = await supabase
+    .from("leads")
+    .select("assigned_to")
+    .not("assigned_to", "is", null);
+
+  const reps = Array.from(
+    new Set((owners ?? []).map((o) => o.assigned_to as string).filter(Boolean)),
+  ).sort();
+
   let query = supabase
-    .from("slug_leads")
+    .from("leads")
     .select(
-      "id, company_name, contact_name, stage, owner_id, estimated_value, updated_at, slug_team_members(full_name)",
+      "id, title, status, deal_value, assigned_to, updated_at, contacts(company, first_name, last_name)",
     )
     .order("updated_at", { ascending: false });
 
-  if (repFilter) query = query.eq("owner_id", repFilter);
+  if (repFilter) query = query.eq("assigned_to", repFilter);
 
   const { data } = await query;
   const leads = (data ?? []) as unknown as LeadRow[];
 
-  const byStage: Record<string, LeadRow[]> = {};
-  for (const s of STAGES) byStage[s] = [];
+  const byStatus: Record<string, LeadRow[]> = {};
+  for (const s of STATUSES) byStatus[s] = [];
   for (const lead of leads) {
-    (byStage[lead.stage] ??= []).push(lead);
+    (byStatus[lead.status] ??= []).push(lead);
   }
 
-  const openLeads = leads.filter((l) => OPEN_STAGES.includes(l.stage as Stage));
-  const openValue = openLeads.reduce(
-    (sum, l) => sum + (l.estimated_value ?? 0),
-    0,
-  );
-
-  const selectedRep = members?.find((m) => m.id === repFilter)?.full_name;
+  const openLeads = leads.filter((l) => OPEN_STATUSES.includes(l.status));
+  const openValue = openLeads.reduce((sum, l) => sum + (l.deal_value ?? 0), 0);
 
   return (
     <>
@@ -66,29 +65,22 @@ export default async function PipelinePage({
           <h1>Team pipeline</h1>
           <p>
             {repFilter
-              ? `Showing ${selectedRep ?? "one rep"}'s leads.`
+              ? `Showing ${repFilter}'s leads.`
               : "Showing the whole team's leads."}
           </p>
         </div>
       </div>
 
       <div className="toolbar">
-        {/* GET form keeps the filter in the URL (shareable / bookmarkable). */}
         <form method="get">
           <label htmlFor="rep" className="muted">
             View:
           </label>
-          <select
-            id="rep"
-            name="rep"
-            defaultValue={repFilter}
-            // Native submit-on-change without client JS:
-            // a plain submit button follows for no-JS fallback.
-          >
+          <select id="rep" name="rep" defaultValue={repFilter}>
             <option value="">Whole team</option>
-            {(members ?? []).map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.full_name}
+            {reps.map((r) => (
+              <option key={r} value={r}>
+                {r}
               </option>
             ))}
           </select>
@@ -102,37 +94,47 @@ export default async function PipelinePage({
         </span>
       </div>
 
-      <div className="board">
-        {STAGES.map((stage) => {
-          const items = byStage[stage] ?? [];
-          return (
-            <div className="col" key={stage}>
-              <h3>
-                {STAGE_LABELS[stage]}
-                <span className="count">{items.length}</span>
-              </h3>
-              {items.length === 0 ? (
-                <div className="empty" style={{ padding: 12, fontSize: 13 }}>
-                  Empty
-                </div>
-              ) : (
-                items.map((lead) => (
-                  <div className="lead-card" key={lead.id}>
-                    <div className="co">{lead.company_name}</div>
-                    <div className="meta">
-                      {lead.contact_name ? lead.contact_name + " · " : ""}
-                      {lead.slug_team_members?.full_name ?? "Unassigned"}
-                    </div>
-                    {lead.estimated_value != null && (
-                      <div className="meta">{money(lead.estimated_value)}</div>
-                    )}
+      {leads.length === 0 ? (
+        <div className="card">
+          <div className="empty">
+            No leads in the pipeline yet. Logging an activity creates one.
+          </div>
+        </div>
+      ) : (
+        <div className="board">
+          {STATUSES.map((status) => {
+            const items = byStatus[status] ?? [];
+            return (
+              <div className="col" key={status}>
+                <h3>
+                  {STATUS_LABELS[status]}
+                  <span className="count">{items.length}</span>
+                </h3>
+                {items.length === 0 ? (
+                  <div className="empty" style={{ padding: 12, fontSize: 13 }}>
+                    Empty
                   </div>
-                ))
-              )}
-            </div>
-          );
-        })}
-      </div>
+                ) : (
+                  items.map((lead) => (
+                    <div className="lead-card" key={lead.id}>
+                      <div className="co">{contactLabel(lead.contacts)}</div>
+                      <div className="meta">
+                        {contactName(lead.contacts) !== contactLabel(lead.contacts)
+                          ? contactName(lead.contacts) + " · "
+                          : ""}
+                        {lead.assigned_to ?? "Unassigned"}
+                      </div>
+                      {lead.deal_value != null && (
+                        <div className="meta">{money(lead.deal_value)}</div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }
