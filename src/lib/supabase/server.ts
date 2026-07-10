@@ -1,5 +1,9 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+
+// Shape of the array @supabase/ssr passes to `setAll`. Annotated explicitly so
+// the build stays green under strict mode's `noImplicitAny`.
+type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
 /**
  * Server Supabase client bound to the request's auth cookies.
@@ -18,7 +22,7 @@ export function createClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options),
