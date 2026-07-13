@@ -12,9 +12,13 @@ export const dynamic = "force-dynamic";
 export default async function LogPage({
   searchParams,
 }: {
-  searchParams: { error?: string; success?: string };
+  searchParams: { error?: string; success?: string; contact?: string; company?: string };
 }) {
   const supabase = createClient();
+
+  // Prefill when arriving from a contact's "Log a touch" action.
+  const prefillContactId = (searchParams.contact ?? "").trim();
+  const prefillCompany = (searchParams.company ?? "").trim();
 
   // Suggest recent companies for fast, consistent entry. Capped so the
   // datalist stays light even though contacts holds thousands of rows.
@@ -45,8 +49,17 @@ export default async function LogPage({
         <div className="notice success">{searchParams.success}</div>
       )}
 
+      {prefillContactId && (
+        <div className="notice success">
+          Logging against {prefillCompany || "this contact"}.
+        </div>
+      )}
+
       <div className="card" style={{ maxWidth: 640 }}>
         <form action={logActivity}>
+          {prefillContactId && (
+            <input type="hidden" name="contact_id" value={prefillContactId} />
+          )}
           <div className="field">
             <label htmlFor="company">Company *</label>
             <input
@@ -54,6 +67,7 @@ export default async function LogPage({
               name="company"
               list="company-list"
               placeholder="e.g. Publik Coffee"
+              defaultValue={prefillCompany}
               autoFocus
               required
             />

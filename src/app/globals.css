@@ -419,3 +419,269 @@ tr:last-child td {
 .mt {
   margin-top: 16px;
 }
+
+/* Contacts: sticky filter bar ------------------------------------------- */
+.filterbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  padding: 12px 0 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-form input {
+  width: auto;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.filter-form .search {
+  flex: 1 1 320px;
+  min-width: 220px;
+}
+
+.filter-form input[type="text"] {
+  width: 120px;
+}
+
+.segments {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.seg {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.seg:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.seg.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Table extras ---------------------------------------------------------- */
+.rowlink {
+  color: var(--text);
+}
+
+.rowlink:hover {
+  color: var(--accent-hover);
+}
+
+.th-sort {
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.th-sort:hover {
+  color: var(--text);
+}
+
+tr:hover td {
+  background: var(--panel-2);
+}
+
+.chips {
+  display: inline-flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.chip.more {
+  color: var(--text);
+}
+
+/* Pagination ------------------------------------------------------------ */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.pager {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn[aria-disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Detail page ----------------------------------------------------------- */
+.crumb {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.related {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.related li {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.related li:last-child {
+  border-bottom: none;
+}
+
+.related-main {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.related-meta {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* Timeline -------------------------------------------------------------- */
+.timeline {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.timeline li {
+  position: relative;
+  padding: 0 0 18px 22px;
+  border-left: 2px solid var(--border);
+}
+
+.timeline li:last-child {
+  border-left-color: transparent;
+  padding-bottom: 0;
+}
+
+.tl-dot {
+  position: absolute;
+  left: -7px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+}
+
+.tl-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tl-outcome {
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tl-summary {
+  margin-top: 5px;
+}
+
+.tl-by {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Skeletons ------------------------------------------------------------- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--panel-2) 25%,
+    var(--border) 37%,
+    var(--panel-2) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 6px;
+}
+
+.skel-bar {
+  height: 38px;
+  width: 100%;
+}
+
+.skel-row {
+  height: 20px;
+  width: 100%;
+  margin: 10px 0;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}

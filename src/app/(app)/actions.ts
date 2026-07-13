@@ -180,3 +180,84 @@ export async function completeFollowUp(formData: FormData) {
   revalidatePath("/follow-ups");
   revalidatePath("/dashboard");
 }
+
+/** Saves edits to a contact. Reads/writes the real `contacts` table. */
+export async function updateContact(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) redirect("/contacts");
+
+  const field = (k: string) => {
+    const v = String(formData.get(k) ?? "").trim();
+    return v || null;
+  };
+
+  const tagsRaw = String(formData.get("tags") ?? "").trim();
+  const tags = tagsRaw
+    ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
+    : [];
+
+  const patch: Record<string, unknown> = {
+    first_name: field("first_name"),
+    last_name: field("last_name"),
+    company: field("company"),
+    title: field("title"),
+    email: field("email"),
+    phone: field("phone"),
+    address: field("address"),
+    city: field("city"),
+    state: field("state"),
+    website: field("website"),
+    instagram: field("instagram"),
+    source: field("source"),
+    notes: field("notes"),
+    assigned_to: field("assigned_to"),
+    tags: tags.length ? tags : null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("contacts").update(patch).eq("id", id);
+
+  revalidatePath(`/contacts/${id}`);
+  revalidatePath("/contacts");
+  const kind = error ? "error" : "success";
+  const msg = error ? `Save failed: ${error.message}` : "Contact saved.";
+  redirect(`/contacts/${id}?${kind}=${encodeURIComponent(msg)}`);
+}
+
+/** Creates a new open lead for a contact (the "Start a lead" action). */
+export async function startLead(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const contactId = String(formData.get("contact_id") ?? "").trim();
+  if (!contactId) redirect("/contacts");
+
+  const supabase = createClient();
+  const { data: c } = await supabase
+    .from("contacts")
+    .select("company, first_name, last_name")
+    .eq("id", contactId)
+    .maybeSingle();
+
+  const title =
+    c?.company ||
+    [c?.first_name, c?.last_name].filter(Boolean).join(" ").trim() ||
+    "New lead";
+
+  const { error } = await supabase.from("leads").insert({
+    contact_id: contactId,
+    title,
+    status: "new",
+    assigned_to: user.email,
+  });
+
+  revalidatePath(`/contacts/${contactId}`);
+  revalidatePath("/pipeline");
+  const kind = error ? "error" : "success";
+  const msg = error ? `Could not start lead: ${error.message}` : "Lead started.";
+  redirect(`/contacts/${contactId}?${kind}=${encodeURIComponent(msg)}`);
+}
